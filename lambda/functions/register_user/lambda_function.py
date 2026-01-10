@@ -34,11 +34,16 @@ def lambda_handler(event, context):
         }
     }
     """
-    try:        
-        email = event.get('email')
-        password = event.get('password')
-        first_name = event.get('firstName')
-        last_name = event.get('lastName')
+    try:
+        body = event.get('body', {})
+        
+        if isinstance(body, str):
+            body = json.loads(body)   
+
+        email = body.get('email')
+        password = body.get('password')
+        first_name = body.get('firstName')
+        last_name = body.get('lastName')
         
         # Validate required fields
         if not email or not password:

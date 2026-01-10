@@ -4,6 +4,7 @@ Lambda function to authenticate a user and return OAuth 2.0 token
 import json
 import os
 import sys
+from datetime import datetime
 
 # Add lambda-functions directory to path
 sys.path.append(os.path.dirname(__file__))
@@ -35,11 +36,12 @@ def lambda_handler(event, context):
     """
     try:
         # Parse request body
-        if isinstance(event.get('body'), str):
-            body = json.loads(event['body'])
-        else:
-            body = event.get('body', {})
+        # When called from API Gateway, event['body'] is a JSON string
+        body = event.get('body', {})
         
+        if isinstance(body, str):
+            body = json.loads(body)
+
         email = body.get('email')
         password = body.get('password')
         
@@ -92,6 +94,7 @@ def lambda_handler(event, context):
         # Create OAuth 2.0 compliant response
         oauth_response = create_oauth_response(access_token)
         
+        oauth_response['timestamp'] = datetime.utcnow().isoformat() + 'Z'
         # Return success response
         return {
             'statusCode': 200,
