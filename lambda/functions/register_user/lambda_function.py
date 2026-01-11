@@ -9,7 +9,7 @@ import sys
 # Add lambda-functions directory to path
 sys.path.append(os.path.dirname(__file__))
 
-from db_utils import create_user, get_user_by_email, encrypt_data
+from db_utils import create_user, get_user_by_email
 from auth_utils import hash_password
 
 
@@ -100,25 +100,16 @@ def lambda_handler(event, context):
                 })
             }
         
-        # Generate user ID
         user_id = str(uuid.uuid4())
-        
-        # Hash password
         password_hash = hash_password(password)
-        
-        # Prepare encrypted data (optional user information)
-        encrypted_data = {}
-        if first_name:
-            encrypted_data['firstName'] = encrypt_data(first_name)
-        if last_name:
-            encrypted_data['lastName'] = encrypt_data(last_name)
         
         # Create user in DynamoDB
         success = create_user(
             user_id=user_id,
             email=email,
+            first_name=first_name,
+            last_name=last_name,
             password_hash=password_hash,
-            encrypted_data=encrypted_data if encrypted_data else None
         )
         
         if not success:

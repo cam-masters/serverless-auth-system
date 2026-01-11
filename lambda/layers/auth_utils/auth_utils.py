@@ -8,9 +8,9 @@ from datetime import datetime, timedelta
 from typing import Dict, Any
 
 # JWT Configuration
-JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-this-in-production')
+JWT_SECRET = os.environ.get('JWT_SECRET', 'secret-key')
 JWT_ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
-JWT_EXPIRATION_HOURS = int(os.environ.get('JWT_EXPIRATION_HOURS', '24'))
+JWT_EXPIRATION_HOURS = int(os.environ.get('JWT_EXPIRATION_HOURS', 24))
 
 
 def hash_password(password: str) -> str:
@@ -64,10 +64,6 @@ def generate_access_token(user_id: str, email: str, additional_claims: Dict[str,
         'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
         'token_type': 'Bearer'
     }
-    
-    # Add any additional claims
-    if additional_claims:
-        payload.update(additional_claims)
     
     token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
     return token

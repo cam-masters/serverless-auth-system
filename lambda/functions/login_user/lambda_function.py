@@ -35,7 +35,6 @@ def lambda_handler(event, context):
     }
     """
     try:
-        # Parse request body
         # When called from API Gateway, event['body'] is a JSON string
         body = event.get('body', {})
         
