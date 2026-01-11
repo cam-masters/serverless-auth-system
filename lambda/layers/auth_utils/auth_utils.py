@@ -4,11 +4,24 @@ Authentication utilities for password hashing and JWT token generation
 import os
 import jwt
 import bcrypt
+import boto3
 from datetime import datetime, timedelta
 from typing import Dict, Any
+from functools import lru_cache
 
 # JWT Configuration
-JWT_SECRET = os.environ.get('JWT_SECRET', 'secret-key')
+@lru_cache(maxsize=1)
+def get_jwt_secret():
+    ssm = boto3.client('ssm')
+    env = os.environ.get('ENVIRONMENT', 'dev')
+    
+    response = ssm.get_parameter(
+        Name=f'serverless-auth-system-jwt-secret-{env.lower()}',
+        WithDecryption=True  # SSM uses KMS behind the scenes
+    )
+    return response['Parameter']['Value']
+
+JWT_SECRET = get_jwt_secret()
 JWT_ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
 JWT_EXPIRATION_HOURS = int(os.environ.get('JWT_EXPIRATION_HOURS', 24))
 

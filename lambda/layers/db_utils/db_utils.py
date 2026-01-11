@@ -13,7 +13,6 @@ dynamodb = boto3.resource('dynamodb')
 
 # Environment variables
 TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'users')
-KMS_KEY_ID = os.environ.get('KMS_KEY_ID', 'alias/auth-system-key')
 
 table = dynamodb.Table(TABLE_NAME)
 
