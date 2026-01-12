@@ -1,0 +1,144 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless Authentication System
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name (dev, prod, etc)
+  
+  JWTExpirationHours:
+    Type: Number
+    Default: 24
+    Description: JWT token expiration in hours
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        JWT_ALGORITHM: HS256
+        JWT_EXPIRATION_HOURS: !Ref JWTExpirationHours
+        DYNAMODB_TABLE_NAME: !Ref UsersTable
+  Api:
+    Cors:
+      AllowOrigins: "'*'"
+      AllowMethods: "'POST,OPTIONS'"
+      AllowHeaders: "'*'"
+
+Resources:
+  # DynamoDB Table
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'users-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: Email_Index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # Lambda Layers
+  DbUtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub 'db-utils-${Environment}'
+      Description: Database utilities layer
+      ContentUri: lambda/layers/db_utils/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.12
+
+  AuthUtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub 'auth-utils-${Environment}'
+      Description: Authentication utilities layer
+      ContentUri: lambda/layers/auth_utils/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.12
+
+  # Lambda Functions
+  RegisterUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'user-register-${Environment}'
+      CodeUri: lambda/functions/register_user/
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - !Ref DbUtilsLayer
+        - !Ref AuthUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/serverless-auth-system-jwt-secret-${Environment}'
+      Events:
+        RegisterApi:
+          Type: HttpApi
+          Properties:
+            Path: /register
+            Method: POST
+
+  LoginUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'user-login-${Environment}'
+      CodeUri: lambda/functions/login_user/
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - !Ref DbUtilsLayer
+        - !Ref AuthUtilsLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/serverless-auth-system-jwt-secret-${Environment}'
+      Events:
+        LoginApi:
+          Type: HttpApi
+          Properties:
+            Path: /login
+            Method: POST
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+  
+  UsersTableName:
+    Description: DynamoDB Users Table Name
+    Value: !Ref UsersTable
+  
+  RegisterFunctionArn:
+    Description: Register User Lambda Function ARN
+    Value: !GetAtt RegisterUserFunction.Arn
+  
+  LoginFunctionArn:
+    Description: Login User Lambda Function ARN
+    Value: !GetAtt LoginUserFunction.Arn
